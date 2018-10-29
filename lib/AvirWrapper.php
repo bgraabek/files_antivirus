@@ -9,7 +9,6 @@
 namespace OCA\Files_Antivirus;
 
 use Icewind\Streams\CallbackWrapper;
-use OC\Files\Storage\Wrapper\Jail;
 use OC\Files\Storage\Wrapper\Wrapper;
 use OCA\Files_Antivirus\Activity\Provider;
 use OCA\Files_Antivirus\AppInfo\Application;
@@ -19,6 +18,7 @@ use OCP\App;
 use OCP\Files\InvalidContentException;
 use OCP\IL10N;
 use OCP\ILogger;
+use OCA\Files_Trashbin\Trash\ITrashManager;
 
 class AvirWrapper extends Wrapper{
 	
@@ -86,20 +86,18 @@ class AvirWrapper extends Wrapper{
 						if ((int)$status->getNumericStatus() === Status::SCANRESULT_INFECTED){
 							//prevent from going to trashbin
 							if (App::isEnabled('files_trashbin')) {
-								\OCA\Files_Trashbin\Storage::preRenameHook([
-									'oldpath' => '',
-									'newpath' => ''
-								]);
+								/** @var ITrashManager $trashManager */
+								$trashManager = \OC::$server->query(ITrashManager::class);
+								$trashManager->pauseTrash();
 							}
 							
 							$owner = $this->getOwner($path);
 							$this->unlink($path);
 
 							if (App::isEnabled('files_trashbin')) {
-								\OCA\Files_Trashbin\Storage::preRenameHook([
-									'oldpath' => '',
-									'newpath' => ''
-								]);
+								/** @var ITrashManager $trashManager */
+								$trashManager = \OC::$server->query(ITrashManager::class);
+								$trashManager->resumeTrash();
 							}
 							$this->logger->warning(
 								'Infected file deleted. ' . $status->getDetails()
